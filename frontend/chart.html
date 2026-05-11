@@ -1,0 +1,480 @@
+<!DOCTYPE html><html><head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <title>TF Engine</title>
+
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+    <style>
+
+    body{
+    margin:0;
+    background:#000;
+    color:#0ff;
+    font-family:monospace;
+    overflow:hidden
+    }
+
+    #toolbar{
+    position:absolute;
+    top:10px;
+    left:10px;
+    z-index:20;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap
+    }
+
+    #panel{
+    display:flex;
+    gap:4px;
+    flex-wrap:wrap
+    }
+
+    button{
+    padding:4px 8px;
+    background:#111;
+    color:#0ff;
+    border:1px solid #0ff
+    }
+
+    .active{
+    background:#0ff;
+    color:#000
+    }
+
+    #pairName{
+    padding:4px 8px;
+    border:1px solid #0ff
+    }
+
+    #price{
+    width:100vw;
+    height:70vh
+    }
+
+    #divider{
+    height:6px;
+    background:#0ff;
+    cursor:row-resize
+    }
+
+    #flow{
+    width:100vw;
+    height:30vh;
+    border-top:1px solid #0ff
+    }
+
+    #debug{
+    position:absolute;
+    bottom:5px;
+    left:10px;
+    color:#0f0;
+    font-size:12px;
+    z-index:20
+    }
+
+    </style>
+
+    </head><body>
+
+    <div id="toolbar">
+
+    <div id="panel"></div>
+
+    <div id="pairName"></div>
+
+    </div>
+
+    <div id="price"></div>
+
+    <div id="divider"></div>
+
+    <div id="flow"></div>
+
+    <div id="debug">booting...</div>
+
+    <script>
+
+    const ROOT="";
+
+    const SYMBOL=
+    new URLSearchParams(location.search)
+    .get("symbol")||"BTCUSDT";
+
+    document.getElementById("pairName").innerText=SYMBOL;
+
+    const TF={
+    "1s":1,
+    "1m":60,
+    "5m":300,
+    "30m":1800,
+    "1h":3600,
+    "4h":14400,
+    "1d":86400
+    };
+
+    let currentTF="1m";
+
+    const panel=document.getElementById("panel");
+
+    for(let k in TF){
+
+    let b=document.createElement("button");
+
+    b.innerText=k;
+
+    if(k===currentTF)
+    b.classList.add("active");
+
+    b.onclick=()=>{
+
+    currentTF=k;
+
+    document
+    .querySelectorAll("button")
+    .forEach(x=>x.classList.remove("active"));
+
+    b.classList.add("active");
+
+    render();
+
+    };
+
+    panel.appendChild(b);
+
+    }
+
+    const followBtn=document.createElement("button");
+
+    followBtn.innerText="FOLLOW";
+
+    followBtn.onclick=()=>{
+
+    autoFollow=true;
+
+    render();
+
+    };
+
+    panel.appendChild(followBtn);
+
+    const priceChart=
+    LightweightCharts.createChart(
+    document.getElementById("price"),
+    {
+    layout:{
+    background:{color:"#000"},
+    textColor:"#0ff"
+    },
+    grid:{
+    vertLines:{visible:false},
+    horzLines:{visible:false}
+    },
+    timeScale:{
+    timeVisible:true,
+    secondsVisible:false,
+    borderColor:"#0ff"
+    }
+    }
+    );
+
+    const candleSeries=
+    priceChart.addSeries(
+    LightweightCharts.CandlestickSeries,
+    {}
+    );
+
+    const flowChart=
+    LightweightCharts.createChart(
+    document.getElementById("flow"),
+    {
+    layout:{
+    background:{color:"#000"},
+    textColor:"#0ff"
+    },
+    grid:{
+    vertLines:{visible:false},
+    horzLines:{visible:false}
+    },
+    timeScale:{
+    timeVisible:true,
+    secondsVisible:false,
+    borderColor:"#0ff"
+    }
+    }
+    );
+
+    const flowSeries=
+    flowChart.addSeries(
+    LightweightCharts.LineSeries,
+    {
+    color:"#00ffff",
+    lineWidth:2
+    }
+    );
+
+    const divider=document.getElementById("divider");
+
+    let dragging=false;
+
+    function resizePanels(y){
+
+    let top=Math.max(
+    100,
+    Math.min(window.innerHeight-100,y)
+    );
+
+    document.getElementById("price").style.height=
+    top+"px";
+
+    document.getElementById("flow").style.height=
+    (window.innerHeight-top-6)+"px";
+
+    priceChart.resize(window.innerWidth,top);
+
+    flowChart.resize(
+    window.innerWidth,
+    window.innerHeight-top-6
+    );
+
+    }
+
+    divider.addEventListener(
+    "mousedown",
+    ()=>dragging=true
+    );
+
+    window.addEventListener(
+    "mouseup",
+    ()=>dragging=false
+    );
+
+    window.addEventListener(
+    "mousemove",
+    e=>{
+
+    if(!dragging)return;
+
+    resizePanels(e.clientY);
+
+    }
+    );
+
+    divider.addEventListener(
+    "touchstart",
+    ()=>dragging=true
+    );
+
+    window.addEventListener(
+    "touchend",
+    ()=>dragging=false
+    );
+
+    window.addEventListener(
+    "touchmove",
+    e=>{
+
+    if(!dragging)return;
+
+    resizePanels(e.touches[0].clientY);
+
+    }
+    );
+
+    let syncing=false;
+
+    priceChart
+    .timeScale()
+    .subscribeVisibleLogicalRangeChange(range=>{
+
+    if(syncing)return;
+
+    syncing=true;
+
+    flowChart
+    .timeScale()
+    .setVisibleLogicalRange(range);
+
+    syncing=false;
+
+    });
+
+    flowChart
+    .timeScale()
+    .subscribeVisibleLogicalRangeChange(range=>{
+
+    if(syncing)return;
+
+    syncing=true;
+
+    priceChart
+    .timeScale()
+    .setVisibleLogicalRange(range);
+
+    syncing=false;
+
+    });
+
+    let raw=[];
+
+    function aggregate(data,tf){
+
+    let size=TF[tf];
+
+    let out=[];
+
+    let bucket=null;
+
+    for(let c of data){
+
+    let t=Math.floor(c.time/1000);
+
+    let key=Math.floor(t/size)*size;
+
+    if(!bucket||bucket.time!==key){
+
+    if(bucket)
+    out.push(bucket);
+
+    bucket={
+    time:key,
+    open:c.open,
+    high:c.high,
+    low:c.low,
+    close:c.close,
+    flow:c.flow
+    };
+
+    }else{
+
+    if(c.high>bucket.high)
+    bucket.high=c.high;
+
+    if(c.low<bucket.low)
+    bucket.low=c.low;
+
+    bucket.close=c.close;
+
+    bucket.flow=c.flow;
+
+    }
+
+    }
+
+    if(bucket)
+    out.push(bucket);
+
+    return out;
+
+    }
+
+    let autoFollow=true;
+
+    function render(){
+
+    let data=aggregate(raw,currentTF);
+
+    let candles=[];
+
+    let flow=[];
+
+    for(let c of data){
+
+    candles.push({
+    time:c.time,
+    open:c.open,
+    high:c.high,
+    low:c.low,
+    close:c.close
+    });
+
+    flow.push({
+    time:c.time,
+    value:c.flow
+    });
+
+    }
+
+    candleSeries.setData(candles);
+
+    flowSeries.setData(flow);
+
+    if(autoFollow){
+
+    priceChart.timeScale().fitContent();
+
+    flowChart.timeScale().fitContent();
+
+    }
+
+    document.getElementById("debug").innerText=
+    "PAIR:"+SYMBOL+
+    " | TF:"+currentTF+
+    " | candles:"+candles.length;
+
+    }
+
+    priceChart
+    .timeScale()
+    .subscribeVisibleLogicalRangeChange(()=>{
+
+    autoFollow=false;
+
+    });
+
+    async function load(){
+
+    try{
+
+    document.getElementById("debug").innerText=
+    "LOADING "+SYMBOL;
+
+    let r=await fetch(ROOT+"/data/"+SYMBOL);
+
+    raw=await r.json();
+
+    render();
+
+    }catch(e){
+
+    document.getElementById("debug").innerText=
+    "ERROR "+e.message;
+
+    }
+
+    }
+
+    function startLive(){
+
+    setInterval(async()=>{
+
+    try{
+
+    let r=await fetch(ROOT+"/data/"+SYMBOL);
+
+    raw=await r.json();
+
+    render();
+
+    }catch(e){
+
+    document.getElementById("debug").innerText=
+    "LIVE ERROR "+e.message;
+
+    }
+
+    },2000);
+
+    }
+
+    load();
+
+    startLive();
+
+    </script>
+
+    </body></html>

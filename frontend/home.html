@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>TF Engine</title>
+
+<style>
+
+body{
+margin:0;
+background:#000;
+color:#0ff;
+font-family:monospace;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+overflow:hidden
+}
+
+#box{
+width:90%;
+max-width:420px
+}
+
+#logo{
+font-size:36px;
+margin-bottom:20px;
+text-align:center
+}
+
+#search{
+width:100%;
+padding:16px;
+font-size:22px;
+background:#000;
+color:#0ff;
+border:2px solid #0ff;
+outline:none
+}
+
+#results{
+border:1px solid #0ff;
+max-height:300px;
+overflow:auto;
+display:none
+}
+
+.pair{
+padding:12px;
+cursor:pointer
+}
+
+.pair:hover{
+background:#0ff;
+color:#000
+}
+
+</style>
+
+</head>
+<body>
+
+<div id="box">
+
+<div id="logo">TF ENGINE</div>
+
+<input id="search" placeholder="Search pair...">
+
+<div id="results"></div>
+
+</div>
+
+<script>
+
+const ROOT="";
+
+const search=document.getElementById("search");
+const results=document.getElementById("results");
+
+let pairs=[];
+
+async function loadPairs(){
+
+let r=await fetch(ROOT+"/pairs");
+
+pairs=await r.json();
+
+}
+
+function openPair(p){
+
+location.href=`/chart.html?symbol=${p}`;
+
+}
+
+search.oninput=()=>{
+
+let q=search.value.toUpperCase();
+
+results.innerHTML="";
+
+if(!q){
+
+results.style.display="none";
+
+return;
+
+}
+
+let found=pairs
+.filter(x=>x.includes(q))
+.slice(0,20);
+
+for(let p of found){
+
+let d=document.createElement("div");
+
+d.className="pair";
+
+d.innerText=p;
+
+d.onclick=()=>openPair(p);
+
+results.appendChild(d);
+
+}
+
+results.style.display=
+found.length?"block":"none";
+
+};
+
+search.onkeydown=e=>{
+
+if(e.key==="Enter"){
+
+let q=search.value.toUpperCase();
+
+if(q)
+openPair(q);
+
+}
+
+};
+
+loadPairs();
+
+</script>
+
+</body>
+</html>
