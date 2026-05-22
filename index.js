@@ -180,7 +180,9 @@ low:t.price,
 close:t.price,
 buy:0,
 sell:0,
-flow:prev
+flow:prev,
+rfSell:0,
+rfBuy:0
 };
 
 }
@@ -210,25 +212,61 @@ let out=sort(
 Object.values(map)
 );
 
+let flow=0;
+
+let rfSell=0;
+
+let rfBuy=0;
+
 for(let i=0;i<out.length;i++){
 
-let prev=
-i?
-out[i-1].flow:
-p.history.length?
-p.history[p.history.length-1].flow:
-0;
-
 if(out[i].buy>out[i].sell)
-out[i].flow=prev+1;
+flow++;
 
 else if(
 out[i].sell>out[i].buy
 )
-out[i].flow=prev-1;
+flow--;
 
-else
-out[i].flow=prev;
+out[i].flow=flow;
+
+out[i].makerSell=
+out[i].buy;
+
+out[i].makerBuy=
+out[i].sell;
+
+if(i){
+
+if(
+out[i].makerSell>
+out[i-1].makerSell
+)
+rfSell++;
+
+else if(
+out[i].makerSell<
+out[i-1].makerSell
+)
+rfSell--;
+
+if(
+out[i].makerBuy>
+out[i-1].makerBuy
+)
+rfBuy++;
+
+else if(
+out[i].makerBuy<
+out[i-1].makerBuy
+)
+rfBuy--;
+
+}
+
+out[i].rfSell=rfSell;
+
+out[i].rfBuy=rfBuy;
 
 }
 

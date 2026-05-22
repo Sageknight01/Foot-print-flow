@@ -32,7 +32,9 @@ console.log(
 SYMBOL
 );
 
-let start=new Date("2026-04-01T00:00:00Z").getTime();
+let start=
+Date.now()-
+7*24*60*60*1000;
 
 let end=Date.now();
 
@@ -49,30 +51,64 @@ let j=await r.json();
 if(!Array.isArray(j)||!j.length)
 break;
 
-for(let k of j)
+for(let k of j){
+
+let volume=+k[5];
+
+let takerBuy=+k[9];
+
+let takerSell=
+volume-takerBuy;
+
+if(takerSell<0)
+takerSell=0;
+
 out.push({
+
 time:+k[0],
+
 open:+k[1],
 high:+k[2],
 low:+k[3],
 close:+k[4],
-buy:0,
-sell:0,
-flow:0
+
+volume,
+
+buy:takerBuy,
+sell:takerSell,
+
+makerSell:takerBuy,
+makerBuy:takerSell,
+
+flow:0,
+
+rfSell:0,
+rfBuy:0
+
 });
+
+}
 
 console.log(
 "KLINES:",
 out.length,
-new Date(out[out.length-1].time).toISOString()
+new Date(
+out[out.length-1].time
+).toISOString()
 );
 
-start=j[j.length-1][0]+60000;
+start=
+j[j.length-1][0]+60000;
 
-await new Promise(x=>setTimeout(x,80));
+await new Promise(
+x=>setTimeout(x,50)
+);
+
 }
 
-history=sort(out.filter(x=>x.time));
+history=sort(
+out.filter(x=>x.time)
+);
 
 console.log(
 "KLINES READY:",
@@ -82,102 +118,72 @@ history.length
 
 }
 
-async function loadFlow(){
-
-console.log(
-"LOADING FLOW:",
-SYMBOL
-);
-
-let start=history[0].time;
-
-let end=Date.now();
-
-let map={};
-
-while(start<end){
-
-let next=start+4*60*60*1000;
-
-let r=await fetch(
-`https://api.binance.com/api/v3/aggTrades?symbol=${SYMBOL}&startTime=${start}&endTime=${next}&limit=1000`
-);
-
-let j=await r.json();
-
-console.log(
-"BLOCK:",
-SYMBOL,
-new Date(start).toISOString(),
-"TRADES:",
-Array.isArray(j)?j.length:"BAD"
-);
-
-if(Array.isArray(j)){
-
-for(let t of j){
-
-let k=String(Math.floor(t.T/60000)*60000);
-
-if(!map[k])
-map[k]={buy:0,sell:0};
-
-t.m
-?map[k].sell+=+t.q
-:map[k].buy+=+t.q;
-
-}
-
-}
-
-start=next+1;
-
-await new Promise(x=>setTimeout(x,80));
-
-}
+function buildFlow(){
 
 let flow=0;
 
-history=history.map((c,i)=>{
+let rfSell=0;
 
-let key=String(c.time);
+let rfBuy=0;
 
-let m=map[key]||{buy:0,sell:0};
+for(let i=0;i<history.length;i++){
 
-if(m.buy>m.sell)flow++;
-else if(m.sell>m.buy)flow--;
+let c=history[i];
 
-let out={
-...c,
-buy:m.buy,
-sell:m.sell,
-flow
-};
+if(c.buy>c.sell)
+flow++;
 
-if(i<10)
-console.log(
-"CANDLE:",
-SYMBOL,
-i,
-new Date(c.time).toISOString(),
-"BUY:",m.buy,
-"SELL:",m.sell,
-"FLOW:",flow
-);
+else if(c.sell>c.buy)
+flow--;
 
-return out;
+c.flow=flow;
 
-});
+/* SELL RESISTANCE */
+
+if(i){
+
+let prev=
+history[i-1]
+.makerSell;
+
+if(c.makerSell>prev)
+rfSell++;
+
+else if(
+c.makerSell<prev
+)
+rfSell--;
+
+}
+
+/* BUY RESISTANCE */
+
+if(i){
+
+let prev=
+history[i-1]
+.makerBuy;
+
+if(c.makerBuy>prev)
+rfBuy++;
+
+else if(
+c.makerBuy<prev
+)
+rfBuy--;
+
+}
+
+c.rfSell=rfSell;
+
+c.rfBuy=rfBuy;
+
+}
 
 console.log(
 "FLOW READY:",
 SYMBOL,
 history.length
-);
-
-console.log(
-"FLOW SAMPLE:",
-history.slice(0,10).map(x=>x.flow)
 );
 
 }
@@ -186,7 +192,7 @@ history.slice(0,10).map(x=>x.flow)
 
 await loadKlines();
 
-await loadFlow();
+buildFlow();
 
 save();
 

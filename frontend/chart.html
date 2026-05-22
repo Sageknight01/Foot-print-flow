@@ -53,19 +53,31 @@
 
     #price{
     width:100vw;
-    height:70vh
+    height:50vh
     }
 
-    #divider{
+    #divider1{
     height:6px;
-    background:#0ff;
+    background:#00ffff;
     cursor:row-resize
     }
 
     #flow{
     width:100vw;
-    height:30vh;
-    border-top:1px solid #0ff
+    height:20vh;
+    border-top:1px solid #00ffff
+    }
+
+    #divider2{
+    height:6px;
+    background:#ff00ff;
+    cursor:row-resize
+    }
+
+    #rf{
+    width:100vw;
+    height:20vh;
+    border-top:1px solid #ff00ff
     }
 
     #debug{
@@ -91,9 +103,13 @@
 
     <div id="price"></div>
 
-    <div id="divider"></div>
+    <div id="divider1"></div>
 
     <div id="flow"></div>
+
+    <div id="divider2"></div>
+
+    <div id="rf"></div>
 
     <div id="debug">booting...</div>
 
@@ -105,7 +121,9 @@
     new URLSearchParams(location.search)
     .get("symbol")||"BTCUSDT";
 
-    document.getElementById("pairName").innerText=SYMBOL;
+    document.getElementById(
+    "pairName"
+    ).innerText=SYMBOL;
 
     const TF={
     "1s":1,
@@ -119,7 +137,10 @@
 
     let currentTF="1m";
 
-    const panel=document.getElementById("panel");
+    let autoFollow=true;
+
+    const panel=
+    document.getElementById("panel");
 
     for(let k in TF){
 
@@ -136,7 +157,9 @@
 
     document
     .querySelectorAll("button")
-    .forEach(x=>x.classList.remove("active"));
+    .forEach(x=>
+    x.classList.remove("active")
+    );
 
     b.classList.add("active");
 
@@ -148,7 +171,8 @@
 
     }
 
-    const followBtn=document.createElement("button");
+    const followBtn=
+    document.createElement("button");
 
     followBtn.innerText="FOLLOW";
 
@@ -156,7 +180,17 @@
 
     autoFollow=true;
 
-    render();
+    priceChart
+    .timeScale()
+    .fitContent();
+
+    flowChart
+    .timeScale()
+    .fitContent();
+
+    rfChart
+    .timeScale()
+    .fitContent();
 
     };
 
@@ -217,70 +251,193 @@
     }
     );
 
-    const divider=document.getElementById("divider");
-
-    let dragging=false;
-
-    function resizePanels(y){
-
-    let top=Math.max(
-    100,
-    Math.min(window.innerHeight-100,y)
+    const rfChart=
+    LightweightCharts.createChart(
+    document.getElementById("rf"),
+    {
+    layout:{
+    background:{color:"#000"},
+    textColor:"#f0f"
+    },
+    grid:{
+    vertLines:{visible:false},
+    horzLines:{visible:false}
+    },
+    timeScale:{
+    timeVisible:true,
+    secondsVisible:false,
+    borderColor:"#f0f"
+    }
+    }
     );
 
-    document.getElementById("price").style.height=
-    top+"px";
+    const rfSellSeries=
+    rfChart.addSeries(
+    LightweightCharts.LineSeries,
+    {
+    color:"#ff00ff",
+    lineWidth:2
+    }
+    );
 
-    document.getElementById("flow").style.height=
-    (window.innerHeight-top-6)+"px";
+    const rfBuySeries=
+    rfChart.addSeries(
+    LightweightCharts.LineSeries,
+    {
+    color:"#ffff00",
+    lineWidth:2
+    }
+    );
 
-    priceChart.resize(window.innerWidth,top);
+    const divider1=
+    document.getElementById("divider1");
+
+    const divider2=
+    document.getElementById("divider2");
+
+    function resizePrice(y){
+
+    let total=
+    window.innerHeight;
+
+    let priceHeight=
+    Math.max(
+    120,
+    Math.min(
+    total-250,
+    y
+    )
+    );
+
+    let flowHeight=
+    document
+    .getElementById("flow")
+    .offsetHeight;
+
+    let rfHeight=
+    total-
+    priceHeight-
+    flowHeight-
+    12;
+
+    document
+    .getElementById("price")
+    .style.height=
+    priceHeight+"px";
+
+    document
+    .getElementById("rf")
+    .style.height=
+    rfHeight+"px";
+
+    priceChart.resize(
+    window.innerWidth,
+    priceHeight
+    );
+
+    rfChart.resize(
+    window.innerWidth,
+    rfHeight
+    );
+
+    }
+
+    function resizeFlow(y){
+
+    let total=
+    window.innerHeight;
+
+    let priceHeight=
+    document
+    .getElementById("price")
+    .offsetHeight;
+
+    let flowTop=
+    priceHeight+6;
+
+    let flowHeight=
+    y-flowTop;
+
+    flowHeight=Math.max(
+    80,
+    Math.min(
+    total-180,
+    flowHeight
+    )
+    );
+
+    let rfHeight=
+    total-
+    priceHeight-
+    flowHeight-
+    12;
+
+    document
+    .getElementById("flow")
+    .style.height=
+    flowHeight+"px";
+
+    document
+    .getElementById("rf")
+    .style.height=
+    rfHeight+"px";
 
     flowChart.resize(
     window.innerWidth,
-    window.innerHeight-top-6
+    flowHeight
+    );
+
+    rfChart.resize(
+    window.innerWidth,
+    rfHeight
     );
 
     }
 
-    divider.addEventListener(
-    "mousedown",
-    ()=>dragging=true
-    );
-
-    window.addEventListener(
-    "mouseup",
-    ()=>dragging=false
-    );
-
-    window.addEventListener(
-    "mousemove",
-    e=>{
-
-    if(!dragging)return;
-
-    resizePanels(e.clientY);
-
-    }
-    );
-
-    divider.addEventListener(
-    "touchstart",
-    ()=>dragging=true
-    );
-
-    window.addEventListener(
-    "touchend",
-    ()=>dragging=false
-    );
-
-    window.addEventListener(
+    divider1.addEventListener(
     "touchmove",
     e=>{
 
-    if(!dragging)return;
+    e.preventDefault();
 
-    resizePanels(e.touches[0].clientY);
+    resizePrice(
+    e.touches[0].clientY
+    );
+
+    },
+    {passive:false}
+    );
+
+    divider2.addEventListener(
+    "touchmove",
+    e=>{
+
+    e.preventDefault();
+
+    resizeFlow(
+    e.touches[0].clientY
+    );
+
+    },
+    {passive:false}
+    );
+
+    divider1.addEventListener(
+    "mousemove",
+    e=>{
+
+    if(e.buttons)
+    resizePrice(e.clientY);
+
+    }
+    );
+
+    divider2.addEventListener(
+    "mousemove",
+    e=>{
+
+    if(e.buttons)
+    resizeFlow(e.clientY);
 
     }
     );
@@ -289,7 +446,8 @@
 
     priceChart
     .timeScale()
-    .subscribeVisibleLogicalRangeChange(range=>{
+    .subscribeVisibleLogicalRangeChange(
+    range=>{
 
     if(syncing)return;
 
@@ -299,13 +457,19 @@
     .timeScale()
     .setVisibleLogicalRange(range);
 
+    rfChart
+    .timeScale()
+    .setVisibleLogicalRange(range);
+
     syncing=false;
 
-    });
+    }
+    );
 
     flowChart
     .timeScale()
-    .subscribeVisibleLogicalRangeChange(range=>{
+    .subscribeVisibleLogicalRangeChange(
+    range=>{
 
     if(syncing)return;
 
@@ -315,9 +479,46 @@
     .timeScale()
     .setVisibleLogicalRange(range);
 
+    rfChart
+    .timeScale()
+    .setVisibleLogicalRange(range);
+
     syncing=false;
 
-    });
+    }
+    );
+
+    rfChart
+    .timeScale()
+    .subscribeVisibleLogicalRangeChange(
+    range=>{
+
+    if(syncing)return;
+
+    syncing=true;
+
+    priceChart
+    .timeScale()
+    .setVisibleLogicalRange(range);
+
+    flowChart
+    .timeScale()
+    .setVisibleLogicalRange(range);
+
+    syncing=false;
+
+    }
+    );
+
+    priceChart
+    .timeScale()
+    .subscribeVisibleLogicalRangeChange(
+    ()=>{
+
+    autoFollow=false;
+
+    }
+    );
 
     let raw=[];
 
@@ -331,11 +532,14 @@
 
     for(let c of data){
 
-    let t=Math.floor(c.time/1000);
+    let t=
+    Math.floor(c.time/1000);
 
-    let key=Math.floor(t/size)*size;
+    let key=
+    Math.floor(t/size)*size;
 
-    if(!bucket||bucket.time!==key){
+    if(!bucket||
+    bucket.time!==key){
 
     if(bucket)
     out.push(bucket);
@@ -346,20 +550,32 @@
     high:c.high,
     low:c.low,
     close:c.close,
-    flow:c.flow
+    flow:c.flow,
+    rfSell:c.rfSell||0,
+    rfBuy:c.rfBuy||0
     };
 
     }else{
 
-    if(c.high>bucket.high)
-    bucket.high=c.high;
+    bucket.high=Math.max(
+    bucket.high,
+    c.high
+    );
 
-    if(c.low<bucket.low)
-    bucket.low=c.low;
+    bucket.low=Math.min(
+    bucket.low,
+    c.low
+    );
 
     bucket.close=c.close;
 
     bucket.flow=c.flow;
+
+    bucket.rfSell=
+    c.rfSell||0;
+
+    bucket.rfBuy=
+    c.rfBuy||0;
 
     }
 
@@ -372,15 +588,18 @@
 
     }
 
-    let autoFollow=true;
-
     function render(){
 
-    let data=aggregate(raw,currentTF);
+    let data=
+    aggregate(raw,currentTF);
 
     let candles=[];
 
     let flow=[];
+
+    let rfSell=[];
+
+    let rfBuy=[];
 
     for(let c of data){
 
@@ -397,64 +616,58 @@
     value:c.flow
     });
 
+    rfSell.push({
+    time:c.time,
+    value:c.rfSell
+    });
+
+    rfBuy.push({
+    time:c.time,
+    value:c.rfBuy
+    });
+
     }
 
     candleSeries.setData(candles);
 
     flowSeries.setData(flow);
 
+    rfSellSeries.setData(rfSell);
+
+    rfBuySeries.setData(rfBuy);
+
     if(autoFollow){
 
-    priceChart.timeScale().fitContent();
+    priceChart
+    .timeScale()
+    .fitContent();
 
-    flowChart.timeScale().fitContent();
+    flowChart
+    .timeScale()
+    .fitContent();
+
+    rfChart
+    .timeScale()
+    .fitContent();
 
     }
 
-    document.getElementById("debug").innerText=
+    document
+    .getElementById("debug")
+    .innerText=
     "PAIR:"+SYMBOL+
     " | TF:"+currentTF+
     " | candles:"+candles.length;
 
     }
 
-    priceChart
-    .timeScale()
-    .subscribeVisibleLogicalRangeChange(()=>{
-
-    autoFollow=false;
-
-    });
-
     async function load(){
 
     try{
 
-    document.getElementById("debug").innerText=
-    "LOADING "+SYMBOL;
-
-    let r=await fetch(ROOT+"/data/"+SYMBOL);
-
-    raw=await r.json();
-
-    render();
-
-    }catch(e){
-
-    document.getElementById("debug").innerText=
-    "ERROR "+e.message;
-
-    }
-
-    }
-
-    function startLive(){
-
-    setInterval(async()=>{
-
-    try{
-
-    let r=await fetch(ROOT+"/data/"+SYMBOL);
+    let r=await fetch(
+    ROOT+"/data/"+SYMBOL
+    );
 
     raw=await r.json();
 
@@ -462,18 +675,17 @@
 
     }catch(e){
 
-    document.getElementById("debug").innerText=
-    "LIVE ERROR "+e.message;
+    document
+    .getElementById("debug")
+    .innerText=e.message;
 
     }
 
-    },2000);
-
     }
+
+    setInterval(load,2000);
 
     load();
-
-    startLive();
 
     </script>
 
