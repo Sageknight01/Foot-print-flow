@@ -82,8 +82,7 @@ makerBuy:takerSell,
 
 flow:0,
 
-rfSell:0,
-rfBuy:0
+rfDelta:0
 
 });
 
@@ -122,9 +121,7 @@ function buildFlow(){
 
 let flow=0;
 
-let rfSell=0;
-
-let rfBuy=0;
+let rf=0;
 
 for(let i=0;i<history.length;i++){
 
@@ -138,45 +135,28 @@ flow--;
 
 c.flow=flow;
 
-/* SELL RESISTANCE */
-
 if(i){
 
 let prev=
-history[i-1]
-.makerSell;
+history[i-1];
 
-if(c.makerSell>prev)
-rfSell++;
+let prevDelta=
+prev.makerSell-
+prev.makerBuy;
 
-else if(
-c.makerSell<prev
-)
-rfSell--;
+let currentDelta=
+c.makerSell-
+c.makerBuy;
 
-}
+if(currentDelta>prevDelta)
+rf++;
 
-/* BUY RESISTANCE */
-
-if(i){
-
-let prev=
-history[i-1]
-.makerBuy;
-
-if(c.makerBuy>prev)
-rfBuy++;
-
-else if(
-c.makerBuy<prev
-)
-rfBuy--;
+else if(currentDelta<prevDelta)
+rf--;
 
 }
 
-c.rfSell=rfSell;
-
-c.rfBuy=rfBuy;
+c.rfDelta=rf;
 
 }
 

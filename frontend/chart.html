@@ -271,20 +271,11 @@
     }
     );
 
-    const rfSellSeries=
+    const rfSeries=
     rfChart.addSeries(
     LightweightCharts.LineSeries,
     {
     color:"#ff00ff",
-    lineWidth:2
-    }
-    );
-
-    const rfBuySeries=
-    rfChart.addSeries(
-    LightweightCharts.LineSeries,
-    {
-    color:"#ffff00",
     lineWidth:2
     }
     );
@@ -551,8 +542,7 @@
     low:c.low,
     close:c.close,
     flow:c.flow,
-    rfSell:c.rfSell||0,
-    rfBuy:c.rfBuy||0
+    rfDelta:c.rfDelta||0
     };
 
     }else{
@@ -571,11 +561,8 @@
 
     bucket.flow=c.flow;
 
-    bucket.rfSell=
-    c.rfSell||0;
-
-    bucket.rfBuy=
-    c.rfBuy||0;
+    bucket.rfDelta=
+    c.rfDelta||0;
 
     }
 
@@ -597,9 +584,7 @@
 
     let flow=[];
 
-    let rfSell=[];
-
-    let rfBuy=[];
+    let rf=[];
 
     for(let c of data){
 
@@ -616,14 +601,9 @@
     value:c.flow
     });
 
-    rfSell.push({
+    rf.push({
     time:c.time,
-    value:c.rfSell
-    });
-
-    rfBuy.push({
-    time:c.time,
-    value:c.rfBuy
+    value:c.rfDelta
     });
 
     }
@@ -632,9 +612,7 @@
 
     flowSeries.setData(flow);
 
-    rfSellSeries.setData(rfSell);
-
-    rfBuySeries.setData(rfBuy);
+    rfSeries.setData(rf);
 
     if(autoFollow){
 
