@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+
+<title>Footprint Flow</title>
+
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+<style>
+:root {
+  --bg: #000;
+  --panel: #080d15;
+  --border: #203044;
+  --text: #d8e6f5;
+  --muted: #8395aa;
+  --cyan: #00e5ff;
+  --magenta: #ff4fd8;
+  --green: #20d6a1;
+  --red: #ff647c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: monospace;
+}
+
+body {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#toolbar {
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+  padding: 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+#brand {
+  color: var(--cyan);
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-bottom: 7px;
+}
+
+#controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.field {
+  min-width: 0;
+}
+
+.field label {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+select, input, button {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: #101824;
+  color: var(--text);
+  font-family: monospace;
+  font-size: 11px;
+}
+
+button {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  cursor: pointer;
+}
+
+button.active {
+  background: var(--cyan);
+  color: #000;
+}
+
+#symbol {
+  text-transform: uppercase;
+}
+
+#customRange {
+  display: none;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+#customRange.visible {
+  display: grid;
+}
+
+#actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  grid-column: 1 / -1;
+}
+
+#status {
+  padding: 6px 8px;
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 10px;
+  background: #05090f;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: #788596;
+}
+
+.dot.connected {
+  background: var(--green);
+}
+
+.dot.error {
+  background: var(--red);
+}
+
+#charts {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.chart-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 65px;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+#pricePanel {
+  flex: 5;
+}
+
+#buyPanel {
+  flex: 2;
+}
+
+#sellPanel {
+  flex: 2;
+}
+
+.chart-heading {
+  height: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+}
+
+#pricePanel .chart-heading {
+  color: var(--text);
+}
+
+#buyPanel .chart-heading {
+  color: var(--cyan);
+}
+
+#sellPanel .chart-heading {
+  color: var(--magenta);
+}
+
+.chart {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.divider {
+  height: 8px;
+  min-height: 8px;
+  flex-shrink: 0;
+  cursor: row-resize;
+  touch-action: none;
+  position: relative;
+  z-index: 5;
+}
+
+#divider1 {
+  background: #06343b;
+  border-top: 1px solid var(--cyan);
+  border-bottom: 1px solid var(--cyan);
+}
+
+#divider2 {
+  background: #35102f;
+  border-top: 1px solid var(--magenta);
+  border-bottom: 1px solid var(--magenta);
+}
+
+.divider::after {
+  content: "";
+  display: block;
+  width: 35px;
+  height: 2px;
+  margin: 2px auto;
+  background: #b8c8d8;
+  opacity: 0.65;
+}
+
+@media (min-width: 800px) {
+  #toolbar {
+    padding: 10px 14px;
+  }
+
+  #controls {
+    grid-template-columns: repeat(5, minmax(100px, 1fr));
+  }
+
+  select, input, button {
+    height: 36px;
+    font-size: 12px;
+  }
+
+  #status {
+    font-size: 11px;
+  }
+
+  .chart-heading {
+    height: 25px;
+    font-size: 11px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header id="toolbar">
+  <div id="brand">FOOTPRINT FLOW</div>
+
+  <div id="controls">
+
+    <div class="field">
+      <label for="symbol">FUTURES SYMBOL</label>
+      <input id="symbol" list="symbolList" value="BTCUSDT" autocomplete="off">
+      <datalist id="symbolList"></datalist>
+    </div>
+
+    <div class="field">
+      <label for="duration">HISTORICAL WINDOW</label>
+      <select id="duration">
+        <option value="30m">30 minutes</option>
+        <option value="1h">1 hour</option>
+        <option value="4h">4 hours</option>
+        <option value="12h">12 hours</option>
+        <option value="24h" selected>24 hours</option>
+        <option value="3d">3 days</option>
+        <option value="7d">7 days</option>
+        <option value="14d">14 days</option>
+        <option value="30d">30 days</option>
+        <option value="custom">Custom range</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="interval">CANDLE INTERVAL</label>
+      <select id="interval">
+        <option value="1m" selected>1 minute</option>
+        <option value="3m">3 minutes</option>
+        <option value="5m">5 minutes</option>
+        <option value="15m">15 minutes</option>
+        <option value="30m">30 minutes</option>
+        <option value="1h">1 hour</option>
+        <option value="4h">4 hours</option>
+        <option value="1d">1 day</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="refreshRate">LIVE REFRESH</label>
+      <select id="refreshRate">
+        <option value="3">3 seconds</option>
+        <option value="5">5 seconds</option>
+        <option value="10">10 seconds</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>&nbsp;</label>
+      <button id="followButton">FOLLOW LATEST</button>
+    </div>
+
+    <div id="customRange">
+      <div class="field">
+        <label for="startDate">START DATE/TIME</label>
+        <input id="startDate" type="datetime-local">
+      </div>
+
+      <div class="field">
+        <label for="endDate">END DATE/TIME</label>
+        <input id="endDate" type="datetime-local">
+      </div>
+    </div>
+
+    <div id="actions">
+      <button id="loadButton">LOAD DATA</button>
+      <button id="fitButton">FIT FULL WINDOW</button>
+    </div>
+
+  </div>
+</header>
+
+<div id="status">
+  <span id="statusDot" class="dot"></span>
+  <span id="statusText">Initializing...</span>
+</div>
+
+<main id="charts">
+
+  <section id="pricePanel" class="chart-panel">
+    <div class="chart-heading">
+      <span>PRICE</span>
+      <span id="priceInfo">BTCUSDT</span>
+    </div>
+    <div id="price" class="chart"></div>
+  </section>
+
+  <div id="divider1" class="divider"></div>
+
+  <section id="buyPanel" class="chart-panel">
+    <div class="chart-heading">
+      <span>BUY TAKER PROGRESSION</span>
+      <span id="buyInfo">0</span>
+    </div>
+    <div id="buy" class="chart"></div>
+  </section>
+
+  <div id="divider2" class="divider"></div>
+
+  <section id="sellPanel" class="chart-panel">
+    <div class="chart-heading">
+      <span>SELL TAKER PROGRESSION</span>
+      <span id="sellInfo">0</span>
+    </div>
+    <div id="sell" class="chart"></div>
+  </section>
+
+</main>
+
+<script>
+"use strict";
+
+/* ======================================================
+   STATE
+====================================================== */
+
+const $ = id => document.getElementById(id);
+
+const state = {
+  symbol: "BTCUSDT",
+  interval: "1m",
+  duration: "24h",
+  loading: false,
+  requestId: 0,
+  lastCandles: [],
+  timer: null,
+  follow: true,
+  hasData: false,
+  syncing: false,
+  userInteracting: false,
+  lastVisibleRange: null
+};
+
+/* ======================================================
+   CHARTS
+====================================================== */
+
+function createChart(element) {
+  return LightweightCharts.createChart(element, {
+    layout: {
+      background: { color: "#000000" },
+      textColor: "#a9bbce",
+      attributionLogo: false
+    },
+
+    grid: {
+      vertLines: { visible: false },
+      horzLines: { color: "#182332" }
+    },
+
+    rightPriceScale: {
+      borderColor: "#203044",
+      autoScale: true
+    },
+
+    timeScale: {
+      borderColor: "#203044",
+      timeVisible: true,
+      secondsVisible: false,
+      rightOffset: 4,
+      barSpacing: 6,
+      minBarSpacing: 0.5,
+      lockVisibleTimeRangeOnResize: true
+    },
+
+    crosshair: {
+      vertLine: { color: "#60758c" },
+      horzLine: { color: "#60758c" }
+    },
+
+    handleScroll: {
+      mouseWheel: true,
+      pressedMouseMove: true,
+      horzTouchDrag: true,
+      vertTouchDrag: false
+    },
+
+    handleScale: {
+      axisPressedMouseMove: true,
+      mouseWheel: true,
+      pinch: true,
+      axisDoubleClickReset: true
+    },
+
+    kineticScroll: {
+      mouse: true,
+      touch: true
+    }
+  });
+}
+
+const priceChart = createChart($("price"));
+const buyChart = createChart($("buy"));
+const sellChart = createChart($("sell"));
+
+const priceSeries = priceChart.addSeries(
+  LightweightCharts.CandlestickSeries,
+  {
+    upColor: "#20d6a1",
+    downColor: "#ff647c",
+    borderVisible: false,
+    wickUpColor: "#20d6a1",
+    wickDownColor: "#ff647c"
+  }
+);
+
+const buySeries = buyChart.addSeries(
+  LightweightCharts.LineSeries,
+  {
+    color: "#00e5ff",
+    lineWidth: 2,
+    priceLineVisible: false
+  }
+);
+
+const sellSeries = sellChart.addSeries(
+  LightweightCharts.LineSeries,
+  {
+    color: "#ff4fd8",
+    lineWidth: 2,
+    priceLineVisible: false
+  }
+);
+
+const charts = [priceChart, buyChart, sellChart];
+
+/* ======================================================
+   RESIZE OBSERVER
+====================================================== */
+
+function resizeCharts() {
+  for (const chart of charts) {
+    const element = chart.chartElement();
+
+    chart.resize(
+      element.clientWidth,
+      element.clientHeight
+    );
+  }
+}
+
+if ("ResizeObserver" in window) {
+  const observer = new ResizeObserver(() => resizeCharts());
+
+  observer.observe($("charts"));
+  observer.observe($("pricePanel"));
+  observer.observe($("buyPanel"));
+  observer.observe($("sellPanel"));
+} else {
+  window.addEventListener("resize", resizeCharts);
+}
+
+/* ======================================================
+   SYNCHRONIZED TIME AXES
+====================================================== */
+
+function synchronizeCharts(source, range) {
+  if (!range || state.syncing) return;
+
+  state.syncing = true;
+
+  try {
+    for (const target of charts) {
+      if (target === source) continue;
+
+      try {
+        target.timeScale().setVisibleLogicalRange(range);
+      } catch (_) {
+        // Target may not have received data yet.
+      }
+    }
+  } finally {
+    state.syncing = false;
+  }
+}
+
+for (const chart of charts) {
+  chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+    if (!range || state.syncing) return;
+
+    state.lastVisibleRange = range;
+
+    if (!state.follow) {
+      state.userInteracting = true;
+    }
+
+    synchronizeCharts(chart, range);
+  });
+}
+
+/* ======================================================
+   STATUS
+====================================================== */
+
+function setStatus(message, mode = "normal") {
+  $("statusText").textContent = message;
+
+  $("statusDot").classList.remove("connected", "error");
+
+  if (mode === "connected") {
+    $("statusDot").classList.add("connected");
+  } else if (mode === "error") {
+    $("statusDot").classList.add("error");
+  }
+}
+
+/* ======================================================
+   SYMBOL LIST
+====================================================== */
+
+async function loadSymbols() {
+  try {
+    const response = await fetch("/api/symbols");
+
+    if (!response.ok) {
+      throw new Error("Symbol request failed.");
+    }
+
+    const result = await response.json();
+
+    if (!Array.isArray(result.symbols)) return;
+
+    const fragment = document.createDocumentFragment();
+
+    for (const symbol of result.symbols) {
+      const option = document.createElement("option");
+      option.value = symbol;
+      fragment.appendChild(option);
+    }
+
+    $("symbolList").replaceChildren(fragment);
+  } catch (error) {
+    console.warn("Could not load symbol suggestions:", error.message);
+  }
+}
+
+/* ======================================================
+   WINDOW PARAMETERS
+====================================================== */
+
+function buildParameters() {
+  const params = new URLSearchParams();
+
+  params.set("interval", state.interval);
+
+  if (state.duration !== "custom") {
+    params.set("duration", state.duration);
+    return params;
+  }
+
+  const startValue = $("startDate").value;
+  const endValue = $("endDate").value;
+
+  if (!startValue || !endValue) {
+    throw new Error("Choose both custom dates.");
+  }
+
+  const start = new Date(startValue).getTime();
+  const end = new Date(endValue).getTime();
+
+  if (
+    !Number.isFinite(start) ||
+    !Number.isFinite(end) ||
+    start <= 0 ||
+    end <= start
+  ) {
+    throw new Error("Invalid custom date range.");
+  }
+
+  if (end - start > 30 * 24 * 60 * 60 * 1000) {
+    throw new Error("Custom range cannot exceed 30 days.");
+  }
+
+  if (end > Date.now() + 60 * 1000) {
+    throw new Error("End date cannot be in the future.");
+  }
+
+  params.set("startTime", String(start));
+  params.set("endTime", String(end));
+
+  return params;
+}
+
+/* ======================================================
+   FETCH DATA
+====================================================== */
+
+async function fetchData(requestId) {
+  if (state.loading) return;
+
+  state.loading = true;
+
+  try {
+    const params = buildParameters();
+
+    const url =
+      `/api/data/${encodeURIComponent(state.symbol)}?${params}`;
+
+    const response = await fetch(url, {
+      cache: "no-store"
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Unable to load data.");
+    }
+
+    if (requestId !== state.requestId) return;
+
+    if (!Array.isArray(result.candles)) {
+      throw new Error("Invalid candle data received.");
+    }
+
+    state.lastCandles = result.candles;
+
+    renderData(result);
+
+    const connection = result.streamConnected
+      ? "LIVE CONNECTED"
+      : "LIVE CONNECTING";
+
+    const updated = result.lastStreamMessage
+      ? new Date(result.lastStreamMessage).toLocaleTimeString()
+      : "waiting for stream";
+
+    setStatus(
+      `${result.symbol} | ${result.interval} | ` +
+      `${result.candles.length} candles | ${connection} | ${updated}`,
+      result.streamConnected ? "connected" : "normal"
+    );
+
+  } catch (error) {
+    if (requestId === state.requestId) {
+      setStatus(error.message, "error");
+    }
+  } finally {
+    state.loading = false;
+  }
+}
+
+/* ======================================================
+   RENDER
+====================================================== */
+
+function renderData(result) {
+  const price = [];
+  const buy = [];
+  const sell = [];
+
+  for (const candle of result.candles) {
+    const time = Math.floor(Number(candle.time) / 1000);
+
+    const values = [
+      Number(candle.open),
+      Number(candle.high),
+      Number(candle.low),
+      Number(candle.close),
+      Number(candle.buyTakerProgression),
+      Number(candle.sellTakerProgression)
+    ];
+
+    if (!Number.isFinite(time) ||
+        !values.every(Number.isFinite)) {
+      continue;
+    }
+
+    price.push({
+      time,
+      open: values[0],
+      high: values[1],
+      low: values[2],
+      close: values[3]
+    });
+
+    buy.push({
+      time,
+      value: values[4]
+    });
+
+    sell.push({
+      time,
+      value: values[5]
+    });
+  }
+
+  // Update all series without resetting their visible ranges.
+  priceSeries.setData(price);
+  buySeries.setData(buy);
+  sellSeries.setData(sell);
+
+  $("priceInfo").textContent =
+    `${result.symbol} · ${result.interval}`;
+
+  if (buy.length) {
+    $("buyInfo").textContent =
+      `Latest: ${buy[buy.length - 1].value}`;
+  }
+
+  if (sell.length) {
+    $("sellInfo").textContent =
+      `Latest: ${sell[sell.length - 1].value}`;
+  }
+
+  if (!state.hasData) {
+    state.hasData = true;
+
+    requestAnimationFrame(() => {
+      resizeCharts();
+      fitFullWindow();
+    });
+
+    return;
+  }
+
+  // Crucial: do not call fitContent() during ordinary
+  // refreshes. Preserve the user's current zoom and scroll.
+  if (state.follow) {
+    requestAnimationFrame(() => {
+      scrollAllToLatest();
+    });
+  }
+}
+
+/* ======================================================
+   VIEW CONTROL
+====================================================== */
+
+function fitFullWindow() {
+  state.syncing = true;
+
+  try {
+    for (const chart of charts) {
+      chart.timeScale().fitContent();
+    }
+  } finally {
+    state.syncing = false;
+  }
+
+  const range = priceChart.timeScale().getVisibleLogicalRange();
+
+  if (range) {
+    synchronizeCharts(priceChart, range);
+  }
+
+  state.follow = false;
+  state.userInteracting = false;
+}
+
+function scrollAllToLatest() {
+  const range = priceChart.timeScale().getVisibleLogicalRange();
+
+  if (!range) {
+    for (const chart of charts) {
+      chart.timeScale().scrollToRealTime();
+    }
+
+    return;
+  }
+
+  // Preserve the current visible width while following
+  // the latest candle.
+  for (const chart of charts) {
+    chart.timeScale().scrollToRealTime();
+  }
+}
+
+$("fitButton").addEventListener("click", () => {
+  fitFullWindow();
+});
+
+$("followButton").addEventListener("click", () => {
+  state.follow = true;
+  state.userInteracting = false;
+
+  scrollAllToLatest();
+
+  setStatus("Following the latest candles.", "connected");
+});
+
+/* ======================================================
+   DRAGGABLE DIVIDERS
+====================================================== */
+
+function setupDivider(dividerId, upperId, lowerId) {
+  const divider = $(dividerId);
+  let dragging = false;
+
+  divider.addEventListener("pointerdown", event => {
+    dragging = true;
+
+    divider.setPointerCapture(event.pointerId);
+
+    document.body.style.userSelect = "none";
+
+    event.preventDefault();
+  });
+
+  divider.addEventListener("pointermove", event => {
+    if (!dragging) return;
+
+    const upper = $(upperId);
+    const lower = $(lowerId);
+    const chartsBox = $("charts");
+
+    const box = chartsBox.getBoundingClientRect();
+
+    const minHeight = 65;
+    const dividerHeight = 8;
+
+    let upperHeight = event.clientY - box.top -
+      Array.from(chartsBox.children)
+        .filter(child => child.classList.contains("chart-panel") &&
+          chartsBox.children.length > 0)
+        .slice(0, 0).length;
+
+    const upperTop = upper.getBoundingClientRect().top;
+
+    upperHeight = event.clientY - upperTop;
+
+    const maxHeight =
+      chartsBox.clientHeight - minHeight - dividerHeight;
+
+    upperHeight = Math.max(
+      minHeight,
+      Math.min(maxHeight, upperHeight)
+    );
+
+    const lowerHeight = Math.max(
+      minHeight,
+      lower.getBoundingClientRect().height +
+        upper.getBoundingClientRect().height -
+        upperHeight
+    );
+
+    upper.style.flex = "none";
+    lower.style.flex = "none";
+
+    upper.style.height = `${upperHeight}px`;
+    lower.style.height = `${lowerHeight}px`;
+
+    resizeCharts();
+  });
+
+  function stopDragging() {
+    dragging = false;
+    document.body.style.userSelect = "";
+  }
+
+  divider.addEventListener("pointerup", stopDragging);
+  divider.addEventListener("pointercancel", stopDragging);
+  divider.addEventListener("lostpointercapture", stopDragging);
+}
+
+setupDivider("divider1", "pricePanel", "buyPanel");
+setupDivider("divider2", "buyPanel", "sellPanel");
+
+/* ======================================================
+   CONTROL EVENTS
+====================================================== */
+
+function load() {
+  state.symbol = $("symbol").value.trim().toUpperCase();
+  state.interval = $("interval").value;
+  state.duration = $("duration").value;
+
+  if (!/^[A-Z0-9]{4,30}$/.test(state.symbol)) {
+    setStatus("Enter a valid symbol, for example BTCUSDT.", "error");
+    return;
+  }
+
+  state.requestId++;
+  state.hasData = false;
+  state.follow = true;
+
+  setStatus("Loading historical candles...");
+
+  fetchData(state.requestId);
+}
+
+$("loadButton").addEventListener("click", load);
+
+$("symbol").addEventListener("change", load);
+
+$("interval").addEventListener("change", load);
+
+$("duration").addEventListener("change", () => {
+  const custom = $("duration").value === "custom";
+
+  $("customRange").classList.toggle("visible", custom);
+
+  if (custom) {
+    const now = new Date();
+    const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    $("endDate").value = toLocalInput(now);
+    $("startDate").value = toLocalInput(start);
+  }
+
+  load();
+});
+
+$("startDate").addEventListener("change", () => {
+  if ($("duration").value === "custom") load();
+});
+
+$("endDate").addEventListener("change", () => {
+  if ($("duration").value === "custom") load();
+});
+
+$("refreshRate").addEventListener("change", startPolling);
+
+function toLocalInput(date) {
+  const offset = date.getTimezoneOffset() * 60000;
+
+  return new Date(date.getTime() - offset)
+    .toISOString()
+    .slice(0, 16);
+}
+
+/* ======================================================
+   LIVE REFRESH
+====================================================== */
+
+function startPolling() {
+  if (state.timer) {
+    clearInterval(state.timer);
+  }
+
+  const seconds = Number($("refreshRate").value) || 3;
+
+  state.timer = setInterval(() => {
+    if (!state.loading) {
+      fetchData(state.requestId);
+    }
+  }, seconds * 1000);
+}
+
+/* ======================================================
+   INITIALIZE
+====================================================== */
+
+async function initialize() {
+  await loadSymbols();
+
+  const query = new URLSearchParams(location.search);
+  const requestedSymbol = query.get("symbol");
+
+  if (requestedSymbol) {
+    $("symbol").value = requestedSymbol.toUpperCase();
+  }
+
+  state.symbol = $("symbol").value.toUpperCase();
+  state.interval = $("interval").value;
+  state.duration = $("duration").value;
+
+  load();
+  startPolling();
+}
+
+initialize();
+
+</script>
+</body>
+  </html>
